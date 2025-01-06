@@ -1,0 +1,82 @@
+{
+    "products": [
+      {
+        "id": 40,
+        "name": "Brykiet drzewny Ałtaj Nestro",
+        "price": "1336.74",
+        "brutto_price": 1644.1902,
+        "stock": 22,
+        "sellable_quantity": 22,
+        "delivery_time": 6,
+        "sku": "PL-BRY-DRZ-AŁT-NES-PAL-960-D-42-41",
+        "available": true,
+        "store_owner": "Marek",
+        "user_first_name": "Marek",
+        "user_last_name": "Olejarczyk",
+        "store_city": "Promna",
+        "store_zip_code": "26-803",
+        "vat_rate": 0.23,
+        "date_modified": "08.07.2024 16:48"
+      },
+      {
+        "id": 364,
+        "name": "Brykiet drzewny Nestro  490 kg",
+        "price": "637.00",
+        "brutto_price": 783.51,
+        "stock": 1,
+        "sellable_quantity": 1,
+        "delivery_time": 0,
+        "sku": "PL-BRY-DRZ-POW-NES-PAL-490-D-29-58",
+        "available": true,
+        "store_owner": "Marek",
+        "user_first_name": "Marek",
+        "user_last_name": "Olejarczyk",
+        "store_city": "Gardno",
+        "store_zip_code": "74-100",
+        "vat_rate": 0.23,
+        "date_modified": "08.07.2024 16:48"
+      },
+      {
+        "id": 359,
+        "name": "Brykiet drzewny Premium 100% Buk RUF",
+        "price": "1097.56",
+        "brutto_price": 1349.9988,
+        "stock": 9,
+        "sellable_quantity": 9,
+        "delivery_time": 0,
+        "sku": "PL-BRY-DRZ-ZAK-BUK-PAL-1000-D-80-82",
+        "available": true,
+        "store_owner": "Marek",
+        "user_first_name": "Marek",
+        "user_last_name": "Olejarczyk",
+        "store_city": "Błotnica Strzelecka",
+        "store_zip_code": "47-134",
+        "vat_rate": 0.23,
+        "date_modified": "08.07.2024 16:48"
+      }
+    ],
+    "orders": [
+      {
+        "order_id": "6666",
+        "order_magento_id": "666",
+        "currency_order": "PLN",
+        "status": "Processing_pl",
+        "ordered_amount": 1,
+        "ordered_product": {
+          "id": 1862,
+          "name": "Brykiet drzewny Ałtaj Nestro",
+          "price": "1336.74",
+          "sku": "PL-BRY-DRZ-AŁT-NES-PAL-960-D-42-41"
+        },
+        "method_payment": "Cash",
+        "total_sum": 1000.0,
+        "brutto_price": 1000.0,
+        "delivery_price_brutto": 1000.0,
+        "shipping_method": "324324",
+        "delivery_number": 54345345,
+        "consignment_date": "07.05.2024 10:04",
+        "shipping_date": "06.05.2024 10:05"
+      }
+    ]
+  }
+  
