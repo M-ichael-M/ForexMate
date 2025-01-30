@@ -9,7 +9,7 @@ const Usd: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<{ email: string; username: string; id: number } | null>(null);
   const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null);
-  const [executedAt, setExecutedAt] = useState<string>('');
+  const [executedAt, setExecutedAt] = useState<string>(''); // Data wykonania
 
 
   const [formData, setFormData] = useState({
@@ -52,17 +52,14 @@ const Usd: React.FC = () => {
 
   const fetchTransactions = () => {
     if (!user) {
-      setTransactions([]); // Jeśli użytkownik nie jest zalogowany, lista transakcji powinna być pusta
+      setTransactions([]);
       return;
     }
   
     axios
       .get(`http://127.0.0.1:5001/api/usd?user_name=${user.username}`)
       .then((response) => setTransactions(response.data))
-      .catch((error) => {
-        console.error('Błąd pobierania transakcji:', error);
-        setError('Nie udało się pobrać transakcji.');
-      });
+      .catch(() => setTransactions([]));
   };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,6 +75,7 @@ const Usd: React.FC = () => {
       return;
     }
 
+
     const { name, input_value, exchange_rate, commission } = formData;
 
     if (!name || !input_value || !exchange_rate || !commission) {
@@ -92,7 +90,6 @@ const Usd: React.FC = () => {
       exchange_rate: parseFloat(exchange_rate),
       commission: parseFloat(commission)
     };
-
     axios
       .post('http://127.0.0.1:5001/api/usd/', data)
       .then(() => {
@@ -104,49 +101,45 @@ const Usd: React.FC = () => {
         setError("Wystąpił błąd podczas dodawania transakcji.");
         setSuccessMessage(null);
       });
-  };
+    };
 
-
-  const handleDelete = (id: number) => {
-    axios
-      .delete(`http://127.0.0.1:5001/api/usd/${id}`)
-      .then(() => {
-        setSuccessMessage("Transakcja została usunięta.");
-        fetchTransactions();
-      })
-      .catch(() => {
-        setError("Wystąpił błąd podczas usuwania transakcji.");
-      });
-  };
-
-  const handleAddDate = (id: number) => {
-    if (!executedAt) {
-      setError("Musisz podać datę.");
-      return;
-    }
-  
-    // Zamiana daty na format RFC 1123
-    const dateObj = new Date(executedAt);
-    const formattedDate = dateObj.toUTCString();
-  
-    const data = {
-      executed_at: formattedDate, // Teraz wysyłamy datę w formacie RFC 1123
+    const deleteTransaction = (id: number) => {
+      axios
+        .delete(`http://127.0.0.1:5001/api/usd/${id}`)
+        .then(() => {
+          setTransactions(transactions.filter(transaction => transaction.id !== id));
+          setSelectedTransactionId(null); // Resetowanie po usunięciu
+        })
+        
+        .catch((error) => console.error("Error deleting transaction:", error));
     };
   
-    axios
-      .put(`http://127.0.0.1:5001/api/usd/${id}`, data)
-      .then(() => {
-        setSuccessMessage("Data wykonania została dodana.");
-        setError(null);
-        setSelectedTransactionId(null); // Zamykamy formularz
-        fetchTransactions(); // Ponowne pobranie transakcji
-      })
-      .catch(() => {
-        setError("Wystąpił błąd podczas aktualizacji daty.");
-        setSuccessMessage(null);
-      });
-  };
+
+    const handleAddDate = (id: number) => {
+      if (!executedAt) {
+        setError("Musisz podać datę.");
+        return;
+      }
   
+      const dateObj = new Date(executedAt);
+      const formattedDate = dateObj.toUTCString();
+  
+      const data = {
+        executed_at: formattedDate,
+      };
+  
+      axios
+        .put(`http://127.0.0.1:5001/api/usd/${id}`, data)
+        .then(() => {
+          setSuccessMessage("Data wykonania została dodana.");
+          setError(null);
+          fetchTransactions();
+        })
+        .catch(() => {
+          setError("Wystąpił błąd podczas aktualizacji daty.");
+          setSuccessMessage(null);
+        });
+    };
   
 
   return (
@@ -195,69 +188,22 @@ const Usd: React.FC = () => {
           {successMessage && <p className="text-green-500 mt-2">{successMessage}</p>}
         </form>
 
-        {/* Wyświetlanie transakcji */}
         <h2 className="text-xl font-bold mt-6">Historia transakcji</h2>
         <table className="w-full mt-4 border-collapse border border-gray-300">
           <thead>
             <tr className="bg-gray-200">
-              <th className="border p-2">ID</th>
-              <th className="border p-2">Data</th>
               <th className="border p-2">Nazwa</th>
-              <th className="border p-2">Kwota</th>
-              <th className="border p-2">Kurs</th>
-              <th className="border p-2">Po wymianie</th>
-              <th className="border p-2">Prowizja</th>
-              <th className="border p-2">Po prowizji</th>
-              <th className="border p-2">Data wykonania</th>
               <th className="border p-2">Akcje</th>
             </tr>
           </thead>
           <tbody>
             {transactions.map((transaction) => (
               <tr key={transaction.id} className="text-center">
-                <td className="border p-2">{transaction.submitted_at}</td>
-                <td className="border p-2">{new Date(transaction.submitted_at).toLocaleString()}</td>
                 <td className="border p-2">{transaction.name}</td>
-                <td className="border p-2">{transaction.input_value} USD</td>
-                <td className="border p-2">{transaction.exchange_rate}</td>
-                <td className="border p-2">{Number(transaction.input_value) * Number(transaction.exchange_rate)}</td>
-                <td className="border p-2">{transaction.user_name}</td>
-                <td className="border p-2">{Number(transaction.input_value) * Number(transaction.exchange_rate)-Number(transaction.commission)}</td>
                 <td className="border p-2">
-                  {transaction.executed_at ? transaction.executed_at : (
-                    <>
-                      <button
-                        onClick={() => setSelectedTransactionId(transaction.id)}
-                        className="bg-green-500 text-white px-2 py-1 rounded"
-                      >
-                        Dodaj
-                      </button>
-                      {selectedTransactionId === transaction.id && (
-                        <div className="mt-2">
-                          <input
-                            type="datetime-local"
-                            value={executedAt}
-                            onChange={(e) => setExecutedAt(e.target.value)}
-                            className="border p-2"
-                          />
-                          <button
-                            onClick={() => handleAddDate(transaction.id)}
-                            className="bg-blue-500 text-white px-2 py-1 rounded mt-2"
-                          >
-                            Zapisz datę
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </td>
-
-                <td className="border p-2">
-                  <button onClick={() => handleDelete(transaction.id)} className="bg-red-500 text-white px-2 py-1 rounded">
-                    Usuń
-                  </button>
-                  <span>⠀⠀</span>
-                  <button onClick={() => {}} className="bg-blue-500 text-white px-2 py-1 rounded">
+                  <button 
+                    onClick={() => setSelectedTransactionId(transaction.id)}
+                    className="bg-blue-500 text-white px-2 py-1 rounded">
                     Szczegóły
                   </button>
                 </td>
@@ -265,6 +211,52 @@ const Usd: React.FC = () => {
             ))}
           </tbody>
         </table>
+
+        {selectedTransactionId && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-5 rounded shadow-lg">
+              <h2 className="text-xl font-bold mb-4">Szczegóły transakcji {transactions.find(transaction => transaction.id === selectedTransactionId)?.name}</h2>
+              <div>
+                <p><strong>Wartość początkowa:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.input_value} USD</p>
+                <p><strong>Kurs wymiany:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.exchange_rate}</p>
+                <p><strong>Prowizja:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.commission}</p>
+                <p><strong>Data wykonania:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.executed_at || "Nie ustawiono"}</p>
+              </div>
+
+              <button
+                onClick={() => deleteTransaction(selectedTransactionId)}
+                className="mt-4 bg-red-700 text-white px-4 py-2 rounded ml-2">
+                Usuń transakcję
+              </button>
+
+              {/* Wyświetlanie opcji zmiany daty tylko, jeśli data nie jest ustawiona */}
+              {!transactions.find(transaction => transaction.id === selectedTransactionId)?.executed_at && (
+                <div className="mt-4">
+                  <input
+                    type="datetime-local"
+                    value={executedAt}
+                    onChange={(e) => setExecutedAt(e.target.value)}
+                    className="border px-4 py-2"
+                  />
+                  <button 
+                    onClick={() => handleAddDate(selectedTransactionId!)}
+                    className="mt-4 bg-green-500 text-white px-4 py-2 rounded">
+                    Dodaj datę wykonania
+                  </button>
+                </div>
+              )}
+
+              {/* Przycisk zamykający okno szczegółów */}
+              <button
+                onClick={() => setSelectedTransactionId(null)}
+                className="mt-4 bg-gray-500 text-white px-4 py-2 rounded">
+                Zamknij
+              </button>
+            </div>
+          </div>
+        )}
+
+
       </div>
     </div>
   );
