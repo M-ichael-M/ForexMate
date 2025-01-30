@@ -30,9 +30,10 @@ const Login: React.FC = () => {
     axios
       .post("http://127.0.0.1:5001/api/login", formData)
       .then((response) => {
-        const { username, email } = response.data;
+        const { username, email, id } = response.data;
         localStorage.setItem("username", username);
         localStorage.setItem("email", email);
+        localStorage.setItem("id", id);
         setSuccess(true);
         setTimeout(() => {
           navigate("/home"); // Przekierowanie na stronę główną po udanym logowaniu
