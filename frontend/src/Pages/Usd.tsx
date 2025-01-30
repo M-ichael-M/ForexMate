@@ -82,7 +82,7 @@ const Usd: React.FC = () => {
       setError("Wszystkie pola są wymagane.");
       return;
     }
-
+  
     const data = {
       user_name: user.username,
       name,
@@ -90,18 +90,26 @@ const Usd: React.FC = () => {
       exchange_rate: parseFloat(exchange_rate),
       commission: parseFloat(commission)
     };
+    
     axios
-      .post('http://127.0.0.1:5001/api/usd/', data)
-      .then(() => {
-        setSuccessMessage("Transakcja została pomyślnie dodana!");
-        setError(null);
-        fetchTransactions();
-      })
-      .catch(() => {
-        setError("Wystąpił błąd podczas dodawania transakcji.");
-        setSuccessMessage(null);
+    .post('http://127.0.0.1:5001/api/usd/', data)
+    .then(() => {
+      setSuccessMessage("Transakcja została pomyślnie dodana!");
+      setError(null);
+      fetchTransactions();
+      // Resetowanie formularza
+      setFormData({
+        name: '',
+        input_value: '',
+        exchange_rate: '',
+        commission: ''
       });
-    };
+    })
+    .catch(() => {
+      setError("Wystąpił błąd podczas dodawania transakcji.");
+      setSuccessMessage(null);
+    });
+};
 
     const deleteTransaction = (id: number) => {
       axios
@@ -146,7 +154,7 @@ const Usd: React.FC = () => {
     <div className="flex h-screen bg-gray-100">
       <SideBar isLoggedIn={isLoggedIn} user={user} handleLogout={handleLogout} />
       <div className="flex-grow p-5 bg-white shadow-md">
-        <h1 className="text-2xl font-bold mb-4">USD Transactions</h1>
+        <h1 className="text-2xl font-bold mb-4">USD</h1>
 
         <form onSubmit={handleSubmit} className="mb-6">
           <input
@@ -162,7 +170,7 @@ const Usd: React.FC = () => {
             name="input_value"
             value={formData.input_value}
             onChange={handleInputChange}
-            placeholder="Input Value"
+            placeholder="Wartość początkowa"
             className="border px-4 py-2 w-full mb-4"
           />
           <input
@@ -170,7 +178,7 @@ const Usd: React.FC = () => {
             name="exchange_rate"
             value={formData.exchange_rate}
             onChange={handleInputChange}
-            placeholder="Exchange Rate"
+            placeholder="Kurs"
             className="border px-4 py-2 w-full mb-4"
           />
           <input
@@ -178,7 +186,7 @@ const Usd: React.FC = () => {
             name="commission"
             value={formData.commission}
             onChange={handleInputChange}
-            placeholder="Commission"
+            placeholder="Prowizja"
             className="border px-4 py-2 w-full mb-4"
           />
           <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
@@ -217,17 +225,15 @@ const Usd: React.FC = () => {
             <div className="bg-white p-5 rounded shadow-lg">
               <h2 className="text-xl font-bold mb-4">Szczegóły transakcji {transactions.find(transaction => transaction.id === selectedTransactionId)?.name}</h2>
               <div>
+                <p><strong>ID:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.uid} USD</p>
+                <p><strong>Data zlecenia:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.submitted_at} USD</p>
                 <p><strong>Wartość początkowa:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.input_value} USD</p>
                 <p><strong>Kurs wymiany:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.exchange_rate}</p>
-                <p><strong>Prowizja:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.commission}</p>
+                <p><strong>Prowizja:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.commission} EUR</p>
                 <p><strong>Data wykonania:</strong> {transactions.find(transaction => transaction.id === selectedTransactionId)?.executed_at || "Nie ustawiono"}</p>
-              </div>
+                <p><strong>Wartość końcowa:</strong>  {transactions.find(transaction => transaction.id === selectedTransactionId)?.input_value * transactions.find(transaction => transaction.id === selectedTransactionId)?.exchange_rate - transactions.find(transaction => transaction.id === selectedTransactionId)?.commission} EUR</p>
 
-              <button
-                onClick={() => deleteTransaction(selectedTransactionId)}
-                className="mt-4 bg-red-700 text-white px-4 py-2 rounded ml-2">
-                Usuń transakcję
-              </button>
+              </div>
 
               {/* Wyświetlanie opcji zmiany daty tylko, jeśli data nie jest ustawiona */}
               {!transactions.find(transaction => transaction.id === selectedTransactionId)?.executed_at && (
@@ -238,6 +244,7 @@ const Usd: React.FC = () => {
                     onChange={(e) => setExecutedAt(e.target.value)}
                     className="border px-4 py-2"
                   />
+                  <span>⠀</span>
                   <button 
                     onClick={() => handleAddDate(selectedTransactionId!)}
                     className="mt-4 bg-green-500 text-white px-4 py-2 rounded">
@@ -245,6 +252,14 @@ const Usd: React.FC = () => {
                   </button>
                 </div>
               )}
+
+              <button
+                onClick={() => deleteTransaction(selectedTransactionId)}
+                className="mt-4 bg-red-700 text-white px-4 py-2 rounded ml-2">
+                Usuń transakcję
+              </button>
+
+              <span>⠀</span>
 
               {/* Przycisk zamykający okno szczegółów */}
               <button

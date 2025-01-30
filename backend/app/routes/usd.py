@@ -93,6 +93,7 @@ def update_executed_at(id):
 
     return jsonify({"error": "Brak wymaganych danych"}), 400
 
+
 # Usuwanie transakcji po ID (USD)
 @usd_bp.route('/<int:id>', methods=['DELETE'])
 def delete_usd(id):
