@@ -24,7 +24,7 @@ const SideBar: React.FC<SideBarProps> = ({ isLoggedIn, user, handleLogout }) => 
     <div
       className={`h-full ${
         isCollapsed ? 'w-16' : 'w-64'
-      } bg-gray-800 text-white shadow-md flex flex-col p-2 transition-width duration-300`}
+      } bg-gray-800 text-white shadow-md flex flex-col p-2 transition-width duration-300 fixed left-0 top-0 h-full`}
     >
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}

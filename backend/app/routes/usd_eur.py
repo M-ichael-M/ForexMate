@@ -2,77 +2,111 @@ from flask import Blueprint, jsonify, request
 from app.models import UsdEur, User
 from .. import db
 from datetime import datetime
+import email.utils
 
-usdEur_bp = Blueprint('usd', __name__)
+usdEur_bp = Blueprint('usdEur', __name__)
 
 
-# Pobieranie wszystkich transakcji (USD)
 @usdEur_bp.route('/', methods=['GET'])
 def get_usdEur():
-    usdEur = UsdEur.query.all()
-    return jsonify([{
-        "id": transaction.id,
-        "submitted_at": transaction.submitted_at,
-        "name": transaction.name,
-        "input_value": transaction.input_value,
-        "exchange_rate": transaction.exchange_rate,
-        "output_value": transaction.output_value,
-        "commission": transaction.commission,
-        "executed_at": transaction.executed_at,
-        "uid": transaction.uid,
-        "user_id": transaction.user_id
-    } for transaction in usdEur])
+    user_name = request.args.get('user_name')  # Pobranie nazwy użytkownika z parametru zapytania
+
+    if not user_name:
+        return jsonify({"error": "User name is required"}), 400  # Zwrócenie błędu, jeśli nie podano użytkownika
+
+    transactions = UsdEur.query.filter_by(user_name=user_name).all()  # Filtrowanie transakcji po nazwie użytkownika
+
+    result = [
+        {
+            "id": t.id,
+            "submitted_at": t.submitted_at,
+            "name": t.name,
+            "input_value": t.input_value,
+            "exchange_rate": t.exchange_rate,
+            "commission": t.commission,
+            "executed_at": t.executed_at,
+            "uid": t.uid,
+            "user_name": t.user_name
+        } for t in transactions
+    ]
+
+    return jsonify(result), 200
 
 
 # Dodawanie nowej transakcji (USD)
 @usdEur_bp.route('/', methods=['POST'])
 def create_usdEur():
     data = request.get_json()
+    user_name = data.get('user_name')
+    name = data.get('name')
+    input_value = data.get('input_value')
+    exchange_rate = data.get('exchange_rate')
+    commission = data.get('commission')
 
-    # Walidacja danych wejściowych
-    if not all(key in data for key in
-               ['submitted_at', 'name', 'input_value', 'exchange_rate', 'output_value', 'commission', 'uid',
-                'user_id']):
-        return jsonify({"message": "Brak wymaganych danych"}), 400
+    if not all([user_name, name, input_value, exchange_rate, commission]):
+        return jsonify({"error": "Brak wymaganych danych"}), 400
 
-    # Sprawdzenie, czy użytkownik istnieje
-    user = User.query.get(data['user_id'])
-    if not user:
-        return jsonify({"message": "Użytkownik nie istnieje"}), 404
+    existing_name = UsdEur.query.filter_by(user_name=user_name, name=name).first()
+    if existing_name:
+        return jsonify({"error": "Nazwa transakcji już istnieje dla tego użytkownika"}), 400
 
-    # Tworzenie nowej transakcji
-    new_usdEur = UsdEur(
-        submitted_at=data['submitted_at'],
-        name=data['name'],
-        input_value=data['input_value'],
-        exchange_rate=data['exchange_rate'],
-        output_value=data['output_value'],
-        commission=data['commission'],
-        uid=data['uid'],
-        user_id=data['user_id']
+    user_transactions = UsdEur.query.filter_by(user_name=user_name).count()
+    new_transaction = UsdEur(
+        submitted_at=datetime.utcnow(),
+        name=name,
+        input_value=input_value,
+        exchange_rate=exchange_rate,
+        commission=commission,
+        uid=user_transactions + 1,
+        user_name=user_name
     )
-    db.session.add(new_usdEur)
+    db.session.add(new_transaction)
     db.session.commit()
-
-    return jsonify({"message": "Transakcja została utworzona"}), 201
+    return jsonify({"message": "Transakcja dodana"}), 201
 
 
 # Aktualizowanie wartości executed_at (USD)
 @usdEur_bp.route('/<int:id>', methods=['PUT'])
 def update_executed_at(id):
+    transaction = UsdEur.query.get(id)
+    if not transaction:
+        return jsonify({"error": "Transakcja nie istnieje"}), 404
+
     data = request.get_json()
+    executed_at = data.get('executed_at')
 
-    # Sprawdzenie, czy podano datę wykonania
-    if 'executed_at' not in data:
-        return jsonify({"message": "Brak daty wykonania"}), 400
+    if executed_at:
+        try:
+            # Parsowanie daty w formacie RFC 1123
+            parsed_date = email.utils.parsedate(executed_at)
+            if parsed_date is None:
+                raise ValueError("Nieprawidłowy format daty")
 
-    # Pobranie transakcji
-    usdEur = UsdEur.query.get(id)
-    if not usdEur:
-        return jsonify({"message": "Transakcja nie istnieje"}), 404
+            # Konwersja do datetime
+            executed_at_date = datetime(*parsed_date[:6])
+            transaction.executed_at = executed_at_date
+        except Exception as e:
+            return jsonify({"error": f"Nieprawidłowy format daty: {str(e)}"}), 400
 
-    # Aktualizacja daty wykonania
-    usdEur.executed_at = datetime.strptime(data['executed_at'], '%Y-%m-%d %H:%M:%S')
+        db.session.commit()
+        return jsonify({"message": "Data wykonania zaktualizowana"}), 200
+
+    return jsonify({"error": "Brak wymaganych danych"}), 400
+
+
+# Usuwanie transakcji po ID (USD)
+@usdEur_bp.route('/<int:id>', methods=['DELETE'])
+def delete_usd(id):
+    transaction = UsdEur.query.get(id)
+    if not transaction:
+        return jsonify({"error": "Transakcja nie istnieje"}), 404
+
+    db.session.delete(transaction)
     db.session.commit()
 
-    return jsonify({"message": "Data wykonania została zaktualizowana"}), 200
+    return jsonify({"message": "Transakcja została usunięta"}), 200
+
+
+@usdEur_bp.route('/', methods=['OPTIONS'])
+def usdEur_options():
+    return jsonify({"message": "OK"}), 200
