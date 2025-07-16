@@ -18,10 +18,12 @@ def create_app():
     from .routes.users import users_bp
     from .routes.usd import usd_bp
     from .routes.usd_eur import usdEur_bp
+    from .routes.wallet import wallet_bp
 
     app.register_blueprint(users_bp)
     app.register_blueprint(usd_bp, url_prefix='/api/usd')
     app.register_blueprint(name="usdEur_bp", blueprint=usdEur_bp, url_prefix='/api/usdEur')
+    app.register_blueprint(name="wallet_bp", blueprint=wallet_bp, url_prefix='/api/wallet')
 
     with app.app_context():
         db.create_all()  # Tworzenie bazy danych

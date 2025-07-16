@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import User, db
 
+from Projekty.waluty.ForexMate2.backend.app.models import Wallet
+
 users_bp = Blueprint('users', __name__, url_prefix='/api')
 
 
@@ -27,12 +29,22 @@ def register_user():
         )
         db.session.add(new_user)
         db.session.commit()
+
+        # Tworzenie portfela dla nowego użytkownika
+        new_wallet = Wallet(
+            user_name=new_user.username,
+            all_wallet_usd_in_usd=0.0,
+            all_wallet_usd_no_used=0.0,
+            all_eur_in_usd_wallet=0.0
+        )
+        db.session.add(new_wallet)
+        db.session.commit()
+
         return jsonify({"message": "Rejestracja zakończona sukcesem"}), 201
 
     except Exception as e:
         print(f"Error occurred: {e}")
         return jsonify({"message": "Coś poszło nie tak", "error": str(e)}), 500
-
 
 @users_bp.route('/login', methods=['POST'])
 def login_user():

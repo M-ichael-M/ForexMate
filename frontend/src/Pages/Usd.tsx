@@ -14,6 +14,12 @@ const Usd: React.FC = () => {
   const [selectedTransactionIdSell, setSelectedTransactionIdSell] = useState<number | null>(null);
   const [executedAtSell, setExecutedAtSell] = useState<string>('');
 
+  const [walletData, setWalletData] = useState<{
+  all_wallet_usd_in_usd: number;
+  all_wallet_usd_no_used: number;
+  all_eur_in_usd_wallet: number;
+  } | null>(null);
+
   // Stany dla formularzy
   const [formDataBuy, setFormDataBuy] = useState({
     name: '',
@@ -31,6 +37,10 @@ const Usd: React.FC = () => {
 
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [history, setHistory] = useState<any[]>([]);
 
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
@@ -51,6 +61,85 @@ const Usd: React.FC = () => {
     if (user) {
       fetchTransactionsBuy();
       fetchTransactionsSell();
+    }
+  }, [user]);
+
+  useEffect(() => {
+  if (user) {
+    fetchWalletData();
+  }
+  }, [user]);
+
+  const fetchWalletData = () => {
+    axios
+      .get(`http://127.0.0.1:5001/api/wallet/${user?.username}`)
+      .then((response) => {
+        setWalletData(response.data);
+      })
+      .catch((error) => {
+        console.error("Błąd pobierania portfela:", error);
+      });
+  };
+
+  const fetchHistory = () => {
+    axios
+      .get(`http://127.0.0.1:5001/api/wallet/history/${user?.username}`)
+      .then((response) => setHistory(response.data))
+      .catch((error) => console.error("Błąd pobierania historii:", error));
+  };
+
+  const handleDeposit = () => {
+    if (!depositAmount || isNaN(parseFloat(depositAmount)) || parseFloat(depositAmount) <= 0) {
+      setError("Podaj poprawną kwotę wpłaty");
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+    axios
+      .post('http://127.0.0.1:5001/api/wallet/deposit', {
+        username: user?.username,
+        amount: parseFloat(depositAmount)
+      })
+      .then(() => {
+        setSuccessMessage("Wpłata pomyślna");
+        setTimeout(() => setSuccessMessage(null), 5000);
+        fetchWalletData(); // Aktualizacja stanu portfela
+        fetchHistory();    // Aktualizacja historii
+        setDepositAmount('');
+      })
+      .catch(() => {
+        setError("Błąd przy wpłacie");
+        setTimeout(() => setError(null), 5000);
+      });
+  };
+
+  const handleWithdraw = () => {
+    if (!withdrawAmount || isNaN(parseFloat(withdrawAmount)) || parseFloat(withdrawAmount) <= 0) {
+      setError("Podaj poprawną kwotę wypłaty");
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+    axios
+      .post('http://127.0.0.1:5001/api/wallet/withdraw', {
+        username: user?.username,
+        amount: parseFloat(withdrawAmount)
+      })
+      .then(() => {
+        setSuccessMessage("Wypłata pomyślna");
+        setTimeout(() => setSuccessMessage(null), 5000);
+        fetchWalletData(); // Aktualizacja stanu portfela
+        fetchHistory();    // Aktualizacja historii
+        setWithdrawAmount('');
+      })
+      .catch((error) => {
+        setError(error.response?.data?.message || "Błąd przy wypłacie");
+        setTimeout(() => setError(null), 5000);
+      });
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchWalletData();
+      fetchHistory();
     }
   }, [user]);
 
@@ -187,12 +276,12 @@ const Usd: React.FC = () => {
           <div>
             <p><strong>ID:</strong> {transaction.uid}</p>
             <p><strong>Data zlecenia:</strong> {transaction.submitted_at}</p>
-            <p><strong>Wartość początkowa:</strong> {transaction.input_value} EUR</p>
-            <p><strong>Kurs wymiany:</strong> {transaction.exchange_rate}</p>
+            <p><strong>Wartość początkowa:</strong> {transaction.input_value} USD</p>
+            <p><strong>Kurs wymiany:</strong> {transaction.exchange_rate} USD/EUR</p>
             <p><strong>Prowizja:</strong> {transaction.commission} USD</p>
             <p><strong>Data wykonania:</strong> {transaction.executed_at || "Nie ustawiono"}</p>
             <p><strong>Wartość końcowa:</strong> 
-              {(transaction.input_value * transaction.exchange_rate - transaction.commission).toFixed(2)} USD
+              {(transaction.input_value * transaction.exchange_rate - transaction.commission).toFixed(2)} EUR
             </p>
           </div>
 
@@ -234,25 +323,95 @@ const Usd: React.FC = () => {
   };
 
   return (
-    <div className="flex-grow p-5 bg-white ml-64">
-      <SideBar isLoggedIn={isLoggedIn} user={user} handleLogout={() => {
-        localStorage.clear();
-        navigate('/login');
-      }} />
-      
-      <div className="flex-grow p-5 bg-white">
-        <h1 className="text-5xl font-bold mb-4">USD</h1>
-        <div className='flex space-x-8'>
+     <div className="flex h-screen bg-gray-100">
+      {/* 2) Sidebar */}
+      <SideBar
+        isLoggedIn={isLoggedIn}
+        user={user}
+        handleLogout={() => {
+          localStorage.clear();
+          navigate('/login');
+        }}
+      />
 
-          {/* Sekcja kupna */}
-          <div className='w-1/2'>
+      {/* 3) Content po prawej, flex-grow */}
+      <div className="flex-grow p-5 bg-white overflow-auto">
+        <h1 className="text-5xl font-bold mb-4">USD</h1>
+
+        {/* Sekcja wpłat i wypłat oraz historia */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-2">Zarządzaj portfelem</h2>
+          <div className="flex space-x-4 mb-4">
+            <div>
+              <input
+                type="number"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                placeholder="Kwota wpłaty"
+                className="border px-4 py-2"
+              />
+              <button onClick={handleDeposit} className="ml-2 bg-green-500 text-white px-4 py-2 rounded">
+                Wpłać
+              </button>
+            </div>
+            <div>
+              <input
+                type="number"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="Kwota wypłaty"
+                className="border px-4 py-2"
+              />
+              <button onClick={handleWithdraw} className="ml-2 bg-red-500 text-white px-4 py-2 rounded">
+                Wypłać
+              </button>
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Historia wpłat i wypłat</h2>
+          <table className="w-full border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="border p-2">Data</th>
+                <th className="border p-2">Typ</th>
+                <th className="border p-2">Kwota</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((transaction) => (
+                <tr key={transaction.id}>
+                  <td className="border p-2">{new Date(transaction.date).toLocaleString()}</td>
+                  <td className="border p-2">{transaction.inOut ? 'Wpłata' : 'Wypłata'}</td>
+                  <td className="border p-2">{transaction.value.toFixed(2)} USD</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Istniejąca sekcja portfela */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-2">Stan portfela</h2>
+          {walletData ? (
+            <ul className="list-disc ml-6">
+              <li><strong>Wartość portfela USD w USD:</strong> {walletData.all_wallet_usd_in_usd.toFixed(2)}</li>
+              <li><strong>USD nieużywane:</strong> {walletData.all_wallet_usd_no_used.toFixed(2)}</li>
+              <li><strong>EUR przeliczone na USD:</strong> {walletData.all_eur_in_usd_wallet.toFixed(2)}</li>
+            </ul>
+          ) : (
+            <p>Ładowanie danych portfela...</p>
+          )}
+        </div>
+
+        {/* Reszta istniejącego kodu */}
+        <div className="flex space-x-8">
+          {/* Kupno */}
+          <div className="w-1/2">
             <h2 className="text-3xl font-bold mb-4">Kup euro</h2>
             <TransactionForm
               formData={formDataBuy}
               handleInputChange={handleInputChangeBuy}
               handleSubmit={handleSubmitBuy}
             />
-            
             <TransactionHistory
               transactions={transactionsBuy}
               onDetailsClick={(id) => setSelectedTransactionIdBuy(id)}
@@ -260,15 +419,14 @@ const Usd: React.FC = () => {
             {selectedTransactionIdBuy && renderDetailsModal(false)}
           </div>
 
-          {/* Sekcja sprzedaży */}
-          <div className='w-1/2'>
+          {/* Sprzedaż */}
+          <div className="w-1/2">
             <h2 className="text-3xl font-bold mb-4">Sprzedaj euro</h2>
             <TransactionForm
               formData={formDataSell}
               handleInputChange={handleInputChangeSell}
               handleSubmit={handleSubmitSell}
             />
-            
             <TransactionHistory
               transactions={transactionsSell}
               onDetailsClick={(id) => setSelectedTransactionIdSell(id)}
@@ -277,7 +435,6 @@ const Usd: React.FC = () => {
           </div>
         </div>
 
-        {/* Komunikaty błędów/sukcesów */}
         {error && <p className="text-red-500 mt-2">{error}</p>}
         {successMessage && <p className="text-green-500 mt-2">{successMessage}</p>}
       </div>
