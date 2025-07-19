@@ -42,6 +42,8 @@ const Usd: React.FC = () => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [history, setHistory] = useState<any[]>([]);
 
+  
+
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
     const storedEmail = localStorage.getItem('email');
@@ -163,8 +165,40 @@ const Usd: React.FC = () => {
     setFormDataBuy((prev) => ({ ...prev, [name]: value }));
   };
 
+  const validateBuyTransaction = () => {
+    const amount = parseFloat(formDataBuy.input_value);
+    if (!walletData || walletData.all_wallet_usd_no_used < amount) {
+      setError("Niewystarczające wolne środki USD");
+      setTimeout(() => setError(null), 5000);
+      return false;
+    }
+    return true;
+  };
+
+  const validateSellTransaction = () => {
+    const sellName = formDataSell.name;
+    // Sprawdź czy istnieje wykonana transakcja kupna o tej nazwie
+    const buyTransaction = transactionsBuy.find(t => t.name === sellName && t.executed_at);
+    if (!buyTransaction) {
+      setError("Nie można sprzedać - brak wykonanej transakcji kupna o tej nazwie");
+      setTimeout(() => setError(null), 5000);
+      return false;
+    }
+    
+    // Sprawdź czy już nie ma transakcji sprzedaży o tej nazwie
+    const sellExists = transactionsSell.find(t => t.name === sellName);
+    if (sellExists) {
+      setError("Transakcja sprzedaży o tej nazwie już istnieje");
+      setTimeout(() => setError(null), 5000);
+      return false;
+    }
+    return true;
+  };
+
+  // Zmodyfikuj handleSubmitBuy:
   const handleSubmitBuy = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateBuyTransaction()) return;
     submitForm(formDataBuy, 'http://127.0.0.1:5001/api/usd/', fetchTransactionsBuy);
   };
 
@@ -176,8 +210,20 @@ const Usd: React.FC = () => {
 
   const handleSubmitSell = (e: React.FormEvent) => {
     e.preventDefault();
-    submitForm(formDataSell, 'http://127.0.0.1:5001/api/usdEur/', fetchTransactionsSell);
+    if (!validateSellTransaction()) return;
+    
+    // Automatycznie ustaw wartość EUR z transakcji kupna
+    const buyTransaction = transactionsBuy.find(t => t.name === formDataSell.name && t.executed_at);
+    if (buyTransaction) {
+      const eurValue = buyTransaction.input_value * buyTransaction.exchange_rate - buyTransaction.commission;
+      const sellData = {
+        ...formDataSell,
+        input_value: eurValue.toString() // Ustaw wartość EUR
+      };
+      submitForm(sellData, 'http://127.0.0.1:5001/api/usdEur/', fetchTransactionsSell);
+    }
   };
+
 
   const submitForm = (formData: any, url: string, fetchFunction: () => void) => {
     if (!user) {
@@ -259,6 +305,12 @@ const Usd: React.FC = () => {
         setError("Błąd aktualizacji daty");
         setTimeout(() => setError(null), 5000); // Dodane
       });
+  };
+
+  const getAvailableTransactionsForSell = () => {
+    return transactionsBuy.filter(t => 
+      t.executed_at && !transactionsSell.find(s => s.name === t.name)
+    );
   };
 
   // Funkcja pomocnicza do renderowania modala

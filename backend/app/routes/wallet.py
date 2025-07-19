@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from app.models import Wallet, db
 
-from Projekty.waluty.ForexMate2.backend.app.models import UsdWalletInOut
+from app.models import UsdWalletInOut
 
 wallet_bp = Blueprint('wallet', __name__, url_prefix='/api/wallet')
 

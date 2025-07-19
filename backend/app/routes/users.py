@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import User, db
 
-from Projekty.waluty.ForexMate2.backend.app.models import Wallet
+from app.models import Wallet
 
 users_bp = Blueprint('users', __name__, url_prefix='/api')
 
