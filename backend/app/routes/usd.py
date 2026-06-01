@@ -7,7 +7,6 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime
 import email.utils
 from ..models import Usd, Wallet, db
-
 usd_bp = Blueprint('usd', __name__)
 
 
@@ -46,6 +45,16 @@ def create_usd():
     if not all([user_name, name, input_value, exchange_rate, commission]):
         return jsonify({"error": "Brak wymaganych danych"}), 400
 
+    try:
+        input_value = float(input_value)
+        exchange_rate = float(exchange_rate)
+        commission = float(commission)
+    except ValueError:
+        return jsonify({"error": "Nieprawidłowe wartości liczbowe"}), 400
+
+    if input_value <= 0 or exchange_rate <= 0 or commission < 0:
+        return jsonify({"error": "Wartości muszą być dodatnie"}), 400
+
     # Sprawdź czy nazwa już istnieje
     existing_name = Usd.query.filter_by(user_name=user_name, name=name).first()
     if existing_name:
@@ -57,10 +66,10 @@ def create_usd():
         return jsonify({"error": "Portfel nie znaleziony"}), 404
 
     if wallet.all_wallet_usd_no_used < input_value:
-        return jsonify({"error": "Niewystarczające wolne środki"}), 400
+        return jsonify({"error": "Niewystarczające wolne środki USD"}), 400
 
     try:
-        # Zmniejsz wolne środki
+        # Zablokuj środki (przenieś z wolnych do zajętych)
         wallet.all_wallet_usd_no_used -= input_value
 
         user_transactions = Usd.query.filter_by(user_name=user_name).count()
@@ -99,16 +108,17 @@ def update_executed_at(id):
             executed_at_date = datetime(*parsed_date[:6])
             transaction.executed_at = executed_at_date
 
-            # Po wykonaniu transakcji przelicz EUR na USD i dodaj do portfela
+            # Po wykonaniu transakcji przelicz USD na EUR i dodaj do portfela
             wallet = Wallet.query.filter_by(user_name=transaction.user_name).first()
             if wallet:
-                eur_value = transaction.input_value * transaction.exchange_rate - transaction.commission
-                eur_in_usd = eur_value  # EUR przeliczone na USD (1:1 dla uproszczenia)
-                wallet.all_eur_in_usd_wallet += eur_in_usd
+                # Oblicz wartość EUR otrzymaną z transakcji
+                eur_received = transaction.input_value * transaction.exchange_rate - transaction.commission
+                wallet.all_eur_in_usd_wallet += eur_received
 
             db.session.commit()
             return jsonify({"message": "Data wykonania zaktualizowana"}), 200
         except Exception as e:
+            db.session.rollback()
             return jsonify({"error": f"Nieprawidłowy format daty: {str(e)}"}), 400
 
     return jsonify({"error": "Brak wymaganych danych"}), 400
@@ -121,11 +131,17 @@ def delete_usd(id):
         return jsonify({"error": "Transakcja nie istnieje"}), 404
 
     try:
-        # Jeśli transakcja nie była wykonana, zwróć środki do portfela
+        # Jeśli transakcja nie była wykonana, zwróć środki do wolnych
         if not transaction.executed_at:
             wallet = Wallet.query.filter_by(user_name=transaction.user_name).first()
             if wallet:
                 wallet.all_wallet_usd_no_used += transaction.input_value
+        # Jeśli była wykonana, usuń EUR z portfela
+        else:
+            wallet = Wallet.query.filter_by(user_name=transaction.user_name).first()
+            if wallet:
+                eur_to_remove = transaction.input_value * transaction.exchange_rate - transaction.commission
+                wallet.all_eur_in_usd_wallet -= eur_to_remove
 
         db.session.delete(transaction)
         db.session.commit()
